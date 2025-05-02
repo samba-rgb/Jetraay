@@ -1,0 +1,5 @@
+# Ignore target directory for Rust builds
+target/
+
+# Ignore Tauri generated schemas
+/gen/schemas/
