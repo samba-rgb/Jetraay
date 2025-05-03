@@ -1,8 +1,10 @@
 # Jetraay
 
-![Jetraay Logo](public/jetraay.png)
+<img src="public/jetraay.png" alt="Jetraay Logo" width="150" />
 
 Jetraay is an API development tool built using modern web technologies. It provides a user-friendly interface for testing and debugging APIs.
+
+**Description**: Jetraay is a pick-and-replace open-source alternative to Postman. It is a lightweight application with super-speed processing, making it suitable for devices with limited memory.
 
 ## Technologies Used
 
@@ -86,4 +88,14 @@ npm run tauri build
 ## Screenshots
 
 ![Jetraay UI](public/screenshot.png)
+
+### Latest UI
+
+![Latest UI](public/day2.png)
+
+## Progress
+
+For detailed progress updates, check the [Progress Document](progress.md).
+
+
 

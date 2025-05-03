@@ -251,7 +251,7 @@ button:focus {
 .top-toolbar {
   display: flex;
   flex-wrap: nowrap; /* Prevent wrapping */
-  justify-content: flex-start; /* Align items to the start */
+  justify-content: space-between; /* Space between input and buttons */
   align-items: center;
   padding: 0.5em 1em;
   background-color: #f4f4f4;
@@ -259,6 +259,14 @@ button:focus {
   height: auto; /* Adjust height to fit content */
   box-sizing: border-box;
   gap: 10px; /* Add spacing between elements */
+}
+
+/* Container for action buttons to align them horizontally */
+.action-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 10px; /* Space between buttons */
+  flex-wrap: nowrap; /* Prevent wrapping */
 }
 
 .api-name-input {
@@ -270,8 +278,9 @@ button:focus {
 }
 
 .save-button,
-.share-button {
-  margin-left: 10px;
+.share-button,
+.history-button {
+  margin-left: 0; /* Remove left margin as we're using gap in container */
   padding: 0.5em 1em;
   background-color: #007bff;
   color: white;
@@ -279,11 +288,13 @@ button:focus {
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s;
-}
-
-.save-button:hover,
-.share-button:hover {
-  background-color: #0056b3;
+  min-width: 80px; /* Set consistent minimum width */
+  height: 36px; /* Set consistent height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9em; /* Consistent font size */
+  white-space: nowrap; /* Prevent text wrapping */
 }
 
 .left-section {
@@ -365,6 +376,9 @@ button:focus {
 .tab.active {
   background-color: white;
   font-weight: bold;
+  color: black; /* Ensure text color is black */
+  background-color: #e0e0e0; /* Optional: Add a subtle background color for better visibility */
+  border: 1px solid #ccc; /* Optional: Add a border for emphasis */
 }
 
 /* Adjust the request section padding */
@@ -748,4 +762,192 @@ button:focus {
 
 .format-option:hover {
   background-color: #f4f4f4; /* Slightly darker background on hover */
+}
+
+/* Add styles for the close button */
+.close-tab-button {
+  background: none;
+  border: none;
+  color: #333; /* Neutral color */
+  font-size: 12px; /* Small size */
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.close-tab-button:hover {
+  color: #000; /* Slightly darker on hover */
+}
+
+/* Add styles for the dropdown menu */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-toggle {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+/* Ensure the dropdown is horizontally aligned */
+.collection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5em 0;
+}
+
+/* Adjust the dropdown menu to align properly */
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  background-color: #333;
+  color: white;
+  min-width: 120px;
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  border-radius: 4px;
+  padding: 0.5em 0;
+  right: 0; /* Align to the right of the three dots */
+}
+
+.dropdown-menu button {
+  background: none;
+  border: none;
+  color: white;
+  padding: 0.5em 1em;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+
+.dropdown-menu button:hover {
+  background-color: #444;
+}
+
+.dropdown:hover .dropdown-menu {
+  display: block;
+}
+
+.history-modal {
+    color: black; /* Ensure default text color is black */
+}
+
+.history-modal ul li {
+    color: black; /* Ensure list items have black text */
+}
+
+.history-modal ul li p {
+    color: black; /* Ensure all paragraph text is black */
+}
+
+.history-modal ul li p.version,
+.history-modal ul li p.timestamp {
+    font-weight: bold; /* Make version and timestamp text bold */
+    color: rgb(240, 29, 29); /* Ensure version and timestamp text is black */
+}
+
+.history-modal ul li {
+    color: black; /* Ensure default text color is black */
+}
+
+.history-modal ul li p.version,
+.history-modal ul li p.timestamp {
+    color: black; /* Set version and timestamp text color to black */
+}
+
+.history-modal, .history-modal ul li, .history-modal ul li p, .history-modal ul li p.version, .history-modal ul li p.timestamp {
+    color: #000000 !important; /* Force the text to be black */
+    background-color: #20dae0 !important; /* Force the background to be white */
+    text-shadow: 0 0 1px rgba(0, 0, 0, 0.5); /* Add a subtle shadow for better visibility */
+}
+
+/* Ensure proper contrast for the history modal */
+.history-modal {
+  color: black; /* Set text color to black */
+  background-color: white; /* Set background color to white */
+}
+
+.history-modal ul li {
+  color: black; /* Ensure list items have black text */
+}
+
+.history-modal ul li p {
+  color: black; /* Ensure all paragraph text is black */
+}
+
+/* Enhanced styling for version and timestamp to make them highly visible */
+.history-modal ul li p.version,
+.history-modal ul li p.timestamp {
+  font-weight: bold; /* Make version and timestamp text bold */
+  color: #000000; /* Set to pure black for maximum contrast */
+  background-color: #f0f0f0; /* Light gray background for better visibility */
+  padding: 3px 6px; /* Add some padding around the text */
+  border-radius: 3px; /* Rounded corners */
+  display: inline-block; /* Contain the background to the text */
+  margin: 3px 0; /* Add some margin */
+  border: 1px solid #cccccc; /* Add a border for more definition */
+  font-size: 1.05em; /* Slightly larger text */
+  letter-spacing: 0.5px; /* Add a bit of letter spacing */
+}
+
+/* History modal specific styles */
+.history-modal {
+  color: black !important;
+}
+
+.history-modal h2 {
+  color: black;
+  margin-bottom: 16px;
+}
+
+.history-modal ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.history-modal li {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.history-modal p {
+  color: black;
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.history-modal pre {
+  background-color: #f0f0f0;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+  color: black;
+  margin: 10px 0;
+  font-family: monospace;
+}
+
+.history-modal button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.history-modal button:hover {
+  background-color: #0056b3;
 }
