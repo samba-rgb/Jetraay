@@ -1,8 +1,8 @@
 use std::process::Command;
 use log::{info, error};
 use env_logger;
-use std::fs::OpenOptions;
-use std::io::{Read, Write};
+use std::fs::create_dir_all;
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use rusqlite::{params, Connection, Result};
 
@@ -29,10 +29,23 @@ struct Jet {
     body: Option<String>,
 }
 
-const DB_PATH: &str = "jets.db";
+// Get the path to the database file
+fn get_db_path() -> PathBuf {
+    let app_data_dir = dirs::data_dir()
+        .expect("Failed to get app data directory")
+        .join("jetraay"); // Add app name as subfolder
+    
+    // Ensure the directory exists
+    create_dir_all(&app_data_dir).expect("Failed to create app data directory");
+    
+    app_data_dir.join("jets.db")
+}
 
 fn init_database() -> Result<()> {
-    let conn = Connection::open(DB_PATH)?;
+    let db_path = get_db_path();
+    info!("Initializing database at: {:?}", db_path);
+    
+    let conn = Connection::open(&db_path)?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS jets (
             id TEXT PRIMARY KEY,
@@ -59,7 +72,12 @@ fn init_database() -> Result<()> {
 }
 
 fn save_jet(jet: &Jet) -> Result<(), String> {
-    let conn = Connection::open(DB_PATH).map_err(|e| e.to_string())?;
+    info!("Saving jet - ID: {}, Method: {}, URL: {}", jet.id, jet.method, jet.url);
+    let db_path = get_db_path();
+    let conn = Connection::open(db_path).map_err(|e| {
+        error!("Failed to open database connection when saving jet: {}", e);
+        e.to_string()
+    })?;
 
     // Fetch the current version number
     let current_version: i64 = conn
@@ -69,14 +87,25 @@ fn save_jet(jet: &Jet) -> Result<(), String> {
             |row| row.get(0),
         )
         .unwrap_or(0);
+    
+    info!("Current version for jet_id {} is {}, saving as version {}", jet.id, current_version, current_version + 1);
 
     // Save the current state to jet_history
-    let jet_data = serde_json::to_string(jet).map_err(|e| e.to_string())?;
+    let jet_data = serde_json::to_string(jet).map_err(|e| {
+        error!("Failed to serialize jet data: {}", e);
+        e.to_string()
+    })?;
+    
     conn.execute(
         "INSERT INTO jet_history (jet_id, version, data) VALUES (?1, ?2, ?3)",
         params![jet.id, current_version + 1, jet_data],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| {
+        error!("Failed to insert into jet_history: {}", e);
+        e.to_string()
+    })?;
+    
+    info!("Saved jet history entry for version {}", current_version + 1);
 
     // Save or update the jet in the jets table
     conn.execute(
@@ -91,12 +120,17 @@ fn save_jet(jet: &Jet) -> Result<(), String> {
             jet.body
         ],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| {
+        error!("Failed to save jet in jets table: {}", e);
+        e.to_string()
+    })?;
+    
+    info!("Successfully saved/updated jet ID: {} in jets table", jet.id);
     Ok(())
 }
 
 fn load_jets() -> Result<Vec<Jet>, String> {
-    let conn = Connection::open(DB_PATH).map_err(|e| e.to_string())?;
+    let conn = Connection::open(get_db_path()).map_err(|e| e.to_string())?;
     let mut stmt = conn.prepare("SELECT id, name, method, url, headers, body FROM jets").map_err(|e| e.to_string())?;
     let jets_iter = stmt.query_map([], |row| {
         Ok(Jet {
@@ -117,14 +151,14 @@ fn load_jets() -> Result<Vec<Jet>, String> {
 }
 
 fn delete_jet(jet_id: &str) -> Result<(), String> {
-    let conn = Connection::open(DB_PATH).map_err(|e| e.to_string())?;
+    let conn = Connection::open(get_db_path()).map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM jets WHERE id = ?1", params![jet_id])
         .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 fn rename_jet(jet_id: &str, new_name: &str) -> Result<(), String> {
-    let conn = Connection::open(DB_PATH).map_err(|e| e.to_string())?;
+    let conn = Connection::open(get_db_path()).map_err(|e| e.to_string())?;
     conn.execute("UPDATE jets SET name = ?1 WHERE id = ?2", params![new_name, jet_id])
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -132,7 +166,7 @@ fn rename_jet(jet_id: &str, new_name: &str) -> Result<(), String> {
 
 fn fetch_jet_history(jet_id: &str) -> Result<Vec<(i64, String, String)>, String> {
     info!("Fetching history for jet_id: {}", jet_id);
-    let conn = Connection::open(DB_PATH).map_err(|e| {
+    let conn = Connection::open(get_db_path()).map_err(|e| {
         error!("Failed to open database connection: {}", e);
         e.to_string()
     })?;
@@ -167,22 +201,52 @@ fn fetch_jet_history(jet_id: &str) -> Result<Vec<(i64, String, String)>, String>
 }
 
 fn revert_jet_to_version(jet_id: &str, version: i64) -> Result<(), String> {
-    let conn = Connection::open(DB_PATH).map_err(|e| e.to_string())?;
+    info!("Attempting to revert jet_id: {} to version: {}", jet_id, version);
+    let conn = Connection::open(get_db_path()).map_err(|e| {
+        error!("Failed to open database connection for revert: {}", e);
+        e.to_string()
+    })?;
 
     // Fetch the specific version data
+    info!("Fetching data for jet_id: {} version: {}", jet_id, version);
     let jet_data: String = conn
         .query_row(
             "SELECT data FROM jet_history WHERE jet_id = ?1 AND version = ?2",
             params![jet_id, version],
             |row| row.get(0),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            error!("Failed to retrieve history data for version {}: {}", version, e);
+            e.to_string()
+        })?;
 
     // Deserialize the data back into a Jet
-    let jet: Jet = serde_json::from_str(&jet_data).map_err(|e| e.to_string())?;
+    let jet: Jet = serde_json::from_str(&jet_data).map_err(|e| {
+        error!("Failed to deserialize jet data: {}", e);
+        e.to_string()
+    })?;
+    
+    info!("Successfully retrieved version {} for jet_id: {}", version, jet_id);
+    info!("Reverting jet to method: {}, url: {}", jet.method, jet.url);
 
-    // Save the Jet back to the jets table
-    save_jet(&jet)
+    // Update the jets table directly without creating a new history entry
+    conn.execute(
+        "UPDATE jets SET name = ?1, method = ?2, url = ?3, headers = ?4, body = ?5 WHERE id = ?6",
+        params![
+            jet.name,
+            jet.method,
+            jet.url,
+            serde_json::to_string(&jet.headers).map_err(|e| e.to_string())?,
+            jet.body,
+            jet.id
+        ],
+    ).map_err(|e| {
+        error!("Failed to update jet when reverting: {}", e);
+        e.to_string()
+    })?;
+    
+    info!("Successfully reverted jet ID: {} to version {}", jet.id, version);
+    Ok(())
 }
 
 #[tauri::command]
@@ -223,6 +287,18 @@ fn revert_jet_to_version_command(jet_id: String, version: i64) -> Result<(), Str
 
 #[tauri::command]
 fn run_curl(method: &str, url: &str, headers: Vec<String>, body: Option<String>) -> Result<String, String> {
+    info!("Request initiated: {} {}", method, url);
+    info!("Headers: {:?}", headers);
+    if let Some(body_content) = &body {
+        if body_content.len() > 500 {
+            info!("Body: {} (truncated)...", &body_content[..500]);
+        } else {
+            info!("Body: {}", body_content);
+        }
+    } else {
+        info!("Body: None");
+    }
+
     let mut command = Command::new("curl");
 
     // Add HTTP method
@@ -249,16 +325,21 @@ fn run_curl(method: &str, url: &str, headers: Vec<String>, body: Option<String>)
         Ok(output) => {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                info!("Command succeeded with output: {}", stdout); // Log success
+                let truncated = if stdout.len() > 1000 {
+                    format!("{} (truncated)...", &stdout[..1000])
+                } else {
+                    stdout.clone()
+                };
+                info!("Request succeeded: {} {} - Response: {}", method, url, truncated);
                 Ok(stdout)
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                error!("Command failed with error: {}", stderr); // Log error
+                error!("Request failed: {} {} - Error: {}", method, url, stderr);
                 Err(stderr)
             }
         }
         Err(e) => {
-            error!("Failed to execute command: {}", e); // Log execution failure
+            error!("Failed to execute request: {} {} - Error: {}", method, url, e);
             Err(e.to_string())
         }
     }
@@ -266,7 +347,63 @@ fn run_curl(method: &str, url: &str, headers: Vec<String>, body: Option<String>)
 
 #[tauri::command]
 fn save_jet_history_command(jet: Jet) -> Result<(), String> {
-    let conn = Connection::open(DB_PATH).map_err(|e| e.to_string())?;
+    info!("Checking if history entry needed for jet_id: {}, method: {}, url: {}", jet.id, jet.method, jet.url);
+    let conn = Connection::open(get_db_path()).map_err(|e| {
+        error!("Failed to open database connection for history check: {}", e);
+        e.to_string()
+    })?;
+
+    // Check if this jet already exists and compare headers/body
+    let mut should_save_history = true;
+    let latest_data = conn.query_row(
+        "SELECT headers, body FROM jets WHERE id = ?1",
+        params![jet.id],
+        |row| {
+            let headers: String = row.get(0)?;
+            let body: Option<String> = row.get(1)?;
+            Ok((headers, body))
+        }
+    );
+
+    if let Ok((headers_str, existing_body)) = latest_data {
+        // Parse headers
+        let existing_headers: Vec<String> = serde_json::from_str(&headers_str).unwrap_or_default();
+        
+        // Check if headers and body are the same
+        let headers_same = existing_headers.len() == jet.headers.len() && 
+                          existing_headers.iter().all(|h| jet.headers.contains(h));
+        let body_same = existing_body == jet.body;
+        
+        if headers_same && body_same {
+            info!("No changes to headers or body detected, skipping history creation");
+            should_save_history = false;
+        } else {
+            info!("Changes detected in headers or body, creating history entry");
+        }
+    } else {
+        info!("No existing jet found with ID: {}, creating initial history entry", jet.id);
+    }
+    
+    if !should_save_history {
+        // Just update the jet without creating history
+        conn.execute(
+            "UPDATE jets SET name = ?1, method = ?2, url = ?3, headers = ?4, body = ?5 WHERE id = ?6",
+            params![
+                jet.name,
+                jet.method,
+                jet.url,
+                serde_json::to_string(&jet.headers).map_err(|e| e.to_string())?,
+                jet.body,
+                jet.id
+            ],
+        ).map_err(|e| {
+            error!("Failed to update jet without history: {}", e);
+            e.to_string()
+        })?;
+        
+        info!("Successfully updated jet ID: {} without creating history entry", jet.id);
+        return Ok(());
+    }
 
     // Fetch the current version number
     let current_version: i64 = conn
@@ -276,15 +413,43 @@ fn save_jet_history_command(jet: Jet) -> Result<(), String> {
             |row| row.get(0),
         )
         .unwrap_or(0);
+    
+    info!("Current version for jet_id {} is {}, saving new version {}", jet.id, current_version, current_version + 1);
 
     // Save the current state to jet_history
-    let jet_data = serde_json::to_string(&jet).map_err(|e| e.to_string())?;
+    let jet_data = serde_json::to_string(&jet).map_err(|e| {
+        error!("Failed to serialize jet data: {}", e);
+        e.to_string()
+    })?;
+    
     conn.execute(
         "INSERT INTO jet_history (jet_id, version, data) VALUES (?1, ?2, ?3)",
         params![jet.id, current_version + 1, jet_data],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| {
+        error!("Failed to insert jet history: {}", e);
+        e.to_string()
+    })?;
 
+    // Update the main jets table
+    conn.execute(
+        "INSERT INTO jets (id, name, method, url, headers, body) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, method = excluded.method, url = excluded.url, headers = excluded.headers, body = excluded.body",
+        params![
+            jet.id,
+            jet.name,
+            jet.method,
+            jet.url,
+            serde_json::to_string(&jet.headers).map_err(|e| e.to_string())?,
+            jet.body
+        ],
+    )
+    .map_err(|e| {
+        error!("Failed to insert/update jet: {}", e);
+        e.to_string()
+    })?;
+
+    info!("Successfully saved history entry for jet_id: {} (version {})", jet.id, current_version + 1);
     Ok(())
 }
 

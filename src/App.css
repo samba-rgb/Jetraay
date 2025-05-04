@@ -902,6 +902,37 @@ button:focus {
 /* History modal specific styles */
 .history-modal {
   color: black !important;
+  max-height: 70vh; /* Limit height to 70% of the viewport height */
+  overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.history-modal h2 {
+  color: black;
+  margin-bottom: 16px;
+  position: sticky; /* Keep the heading visible while scrolling */
+  top: 0;
+  background-color: white;
+  padding: 5px 0;
+  z-index: 5;
+}
+
+.history-modal ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0; /* Remove default margin */
+}
+
+.history-modal li {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+/* History modal specific styles */
+.history-modal {
+  color: black !important;
 }
 
 .history-modal h2 {

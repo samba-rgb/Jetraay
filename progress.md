@@ -7,3 +7,7 @@
 ## Day 2
 
 ![Day 2](public/day2.png)
+
+## Day 3
+
+![Day 3](public/day3.png)
