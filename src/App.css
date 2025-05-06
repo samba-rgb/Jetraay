@@ -430,7 +430,7 @@ button:focus {
   display: grid;
   grid-template-columns: auto 40% 1fr auto; /* Define the layout: checkbox, header name, header value, delete icon */
   align-items: center;
-  gap: 10px; /* Add spacing between elements */
+  gap: 5vh; /* Add spacing between elements */
   padding: 6px 10px;
   padding-block: 4px;
   border: 1px solid #ccc;
